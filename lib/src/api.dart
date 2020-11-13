@@ -11,6 +11,7 @@ import 'package:flutter/material.dart'
         Text,
         Widget;
 import 'package:flutter/services.dart' show MethodChannel;
+import 'package:flutter/widgets.dart';
 
 import 'actions.dart';
 import 'event.dart';
@@ -19,6 +20,54 @@ bool get isIOS => Platform.isIOS;
 bool get supportConnectionService =>
     !isIOS && int.parse(Platform.version) >= 23;
 
+class AndroidOptions{
+  AndroidOptions({this.alertTitle,this.alertDescription,this.cancelButton,this.imageName,this.okButton,this.additionalPermissions});
+final String imageName;
+final String alertTitle;
+final String alertDescription;
+final String cancelButton;
+final String okButton;
+final List<String>additionalPermissions;
+Map<String,dynamic> _toJson()=>{'imageName':imageName};
+
+}
+class IOSOptions{
+  IOSOptions({this.appName,this.handleType = HandleType.generic,this.supportsVideo=true,this.maximumCallGroups=1,
+  this.maximumCallsPerCallGroup=1,this.imageName,this.ringtoneSound,this.includeCallInRecents});
+  final String appName;
+  final HandleType handleType;
+  final bool supportsVideo;
+  final int maximumCallGroups;
+  final int maximumCallsPerCallGroup;
+  final String imageName;
+  final String ringtoneSound;
+  final bool includeCallInRecents;
+  Map<String,dynamic> _toJson(){
+    var json = {
+      'appName':appName,
+      'handleType':_handleType(handleType),
+      'supportsVideo':supportsVideo??true,
+      'maximumCallGroups':maximumCallGroups??1,
+      'maximumCallsPerCallGroup':maximumCallsPerCallGroup??1,
+      'includeCallInRecents':includeCallInRecents??false
+    };
+    if(imageName!=null) {
+      json['imageName'] = imageName;
+    }
+
+    if(ringtoneSound!=null) {
+      json['ringtoneSound'] = ringtoneSound;
+    }
+    return json;
+  }
+
+}
+class SetupOptions{
+  SetupOptions({this.android,this.iOS});
+  final AndroidOptions android;
+  final IOSOptions iOS;
+  
+}
 class FlutterCallkeep extends EventManager {
   factory FlutterCallkeep() {
     return _instance;
@@ -31,11 +80,11 @@ class FlutterCallkeep extends EventManager {
   static const MethodChannel _event = MethodChannel('FlutterCallKeep.Event');
   BuildContext _context;
 
-  Future<void> setup(Map<String, dynamic> options) async {
+  Future<void> setup(SetupOptions options) async {
     if (!isIOS) {
-      await _setupAndroid(options['android'] as Map<String, dynamic>);
+      await _setupAndroid(options.android);
     }
-    await _setupIOS(options['ios'] as Map<String, dynamic>);
+    await _setupIOS(options.iOS);
   }
 
   Future<void> registerPhoneAccount() async {
@@ -54,7 +103,7 @@ class FlutterCallkeep extends EventManager {
   }
 
   Future<void> hasDefaultPhoneAccount(
-      BuildContext context, Map<String, dynamic> options) async {
+      BuildContext context, AndroidOptions options) async {
     _context = context;
     if (!isIOS) {
       return _hasDefaultPhoneAccount(options);
@@ -67,17 +116,18 @@ class FlutterCallkeep extends EventManager {
         .invokeMethod<bool>('checkDefaultPhoneAccount', <String, dynamic>{});
   }
 
-  Future<void> _hasDefaultPhoneAccount(Map<String, dynamic> options) async {
+  Future<void> _hasDefaultPhoneAccount(AndroidOptions options) async {
     final hasDefault = await _checkDefaultPhoneAccount();
     final shouldOpenAccounts = await _alert(options, hasDefault);
     if (shouldOpenAccounts) {
       await _openPhoneAccounts();
     }
   }
+  
 
   Future<void> displayIncomingCall(String uuid, String handle,
       {String localizedCallerName = '',
-      String handleType = 'number',
+      HandleType handleType = HandleType.generic,
       bool hasVideo = false}) async {
     if (!isIOS) {
       await _channel.invokeMethod<void>(
@@ -91,7 +141,7 @@ class FlutterCallkeep extends EventManager {
     await _channel.invokeMethod<void>('displayIncomingCall', <String, dynamic>{
       'uuid': uuid,
       'handle': handle,
-      'handleType': handleType,
+      'handleType': _handleType(handleType),
       'hasVideo': hasVideo,
       'localizedCallerName': localizedCallerName
     });
@@ -105,7 +155,7 @@ class FlutterCallkeep extends EventManager {
   }
 
   Future<void> startCall(String uuid, String handle, String callerName,
-      {String handleType = 'number', bool hasVideo = false}) async {
+      {HandleType handleType = HandleType.generic, bool hasVideo = false}) async {
     if (!isIOS) {
       await _channel.invokeMethod<void>('startCall', <String, dynamic>{
         'uuid': uuid,
@@ -118,7 +168,7 @@ class FlutterCallkeep extends EventManager {
       'uuid': uuid,
       'handle': handle,
       'callerName': callerName,
-      'handleType': handleType,
+      'handleType': _handleType(handleType),
       'hasVideo': hasVideo
     });
   }
@@ -198,13 +248,13 @@ class FlutterCallkeep extends EventManager {
       ? await _channel.invokeMethod<void>('checkSpeaker', <String, dynamic>{})
       : throw Exception('CallKeep.checkSpeaker was called from unsupported OS');
 
-  Future<void> setAvailable(String state) async {
+  Future<void> setAvailable(RestorableBool state) async {
     if (isIOS) {
       return;
     }
     // Tell android that we are able to make outgoing calls
     await _channel
-        .invokeMethod<void>('setAvailable', <String, dynamic>{'state': state});
+        .invokeMethod<void>('setAvailable', <String, dynamic>{'available': state});
   }
 
   Future<void> setCurrentCallActive(String callUUID) async {
@@ -259,22 +309,19 @@ class FlutterCallkeep extends EventManager {
     await _channel.invokeMethod<void>('backToForeground', <String, dynamic>{});
   }
 
-  Future<void> _setupIOS(Map<String, dynamic> options) async {
-    if (options['appName'] == null) {
+  Future<void> _setupIOS(IOSOptions options) async {
+    if (options.appName == null) {
       throw Exception('CallKeep.setup: option "appName" is required');
     }
-    if (options['appName'] is String == false) {
-      throw Exception(
-          'CallKeep.setup: option "appName" should be of type "string"');
-    }
+    
     return await _channel
-        .invokeMethod<void>('setup', <String, dynamic>{'options': options});
+        .invokeMethod<void>('setup', <String, dynamic>{'options': options._toJson()});
   }
 
-  Future<bool> _setupAndroid(Map<String, dynamic> options) async {
-    await _channel.invokeMethod<void>('setup', {'options': options});
+  Future<bool> _setupAndroid(AndroidOptions options) async {
+    await _channel.invokeMethod<void>('setup', {'options': options._toJson()});
     final showAccountAlert = await _checkPhoneAccountPermission(
-        options['additionalPermissions'] as List<String> ?? <String>[]);
+        options.additionalPermissions ?? <String>[]);
     final shouldOpenAccounts = await _alert(options, showAccountAlert);
 
     if (shouldOpenAccounts) {
@@ -302,16 +349,16 @@ class FlutterCallkeep extends EventManager {
     });
   }
 
-  Future<bool> _alert(Map<String, dynamic> options, bool condition) async {
+  Future<bool> _alert(AndroidOptions options, bool condition) async {
     if (_context == null) {
       return false;
     }
     return await _showAlertDialog(
         _context,
-        options['alertTitle'] as String,
-        options['alertDescription'] as String,
-        options['cancelButton'] as String,
-        options['okButton'] as String);
+        options.alertTitle ,
+        options.alertDescription,
+        options.cancelButton,
+        options.okButton);
   }
 
   Future<bool> _showAlertDialog(BuildContext context, String alertTitle,
@@ -384,3 +431,15 @@ class FlutterCallkeep extends EventManager {
     }
   }
 }
+
+enum HandleType{
+  generic,number,email
+ 
+}
+String _handleType(HandleType type){
+    switch(type){
+      case HandleType.email: return 'email';
+      case HandleType.number: return 'number';
+      default : return 'generic';
+    }
+  }
