@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:flutter/services.dart';
+
 import 'package:flutter/material.dart'
     show
         showDialog,
@@ -10,6 +10,7 @@ import 'package:flutter/material.dart'
         Navigator,
         Text,
         Widget;
+import 'package:flutter/services.dart';
 import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter/widgets.dart';
 
@@ -20,20 +21,33 @@ bool get isIOS => Platform.isIOS;
 bool get supportConnectionService =>
     !isIOS && int.parse(Platform.version) >= 23;
 
-class AndroidOptions{
-  AndroidOptions({this.alertTitle,this.alertDescription,this.cancelButton,this.imageName,this.okButton,this.additionalPermissions});
-final String imageName;
-final String alertTitle;
-final String alertDescription;
-final String cancelButton;
-final String okButton;
-final List<String>additionalPermissions;
-Map<String,dynamic> _toJson()=>{'imageName':imageName};
-
+class AndroidOptions {
+  AndroidOptions(
+      {this.alertTitle,
+      this.alertDescription,
+      this.cancelButton,
+      this.imageName,
+      this.okButton,
+      this.additionalPermissions});
+  final String imageName;
+  final String alertTitle;
+  final String alertDescription;
+  final String cancelButton;
+  final String okButton;
+  final List<String> additionalPermissions;
+  Map<String, dynamic> _toJson() => {'imageName': imageName};
 }
-class IOSOptions{
-  IOSOptions({this.appName,this.handleType = HandleType.generic,this.supportsVideo=true,this.maximumCallGroups=1,
-  this.maximumCallsPerCallGroup=1,this.imageName,this.ringtoneSound,this.includeCallInRecents});
+
+class IOSOptions {
+  IOSOptions(
+      {this.appName,
+      this.handleType = HandleType.generic,
+      this.supportsVideo = true,
+      this.maximumCallGroups = 1,
+      this.maximumCallsPerCallGroup = 1,
+      this.imageName,
+      this.ringtoneSound,
+      this.includeCallInRecents});
   final String appName;
   final HandleType handleType;
   final bool supportsVideo;
@@ -42,32 +56,32 @@ class IOSOptions{
   final String imageName;
   final String ringtoneSound;
   final bool includeCallInRecents;
-  Map<String,dynamic> _toJson(){
+  Map<String, dynamic> _toJson() {
     var json = {
-      'appName':appName,
-      'handleType':_handleType(handleType),
-      'supportsVideo':supportsVideo??true,
-      'maximumCallGroups':maximumCallGroups??1,
-      'maximumCallsPerCallGroup':maximumCallsPerCallGroup??1,
-      'includeCallInRecents':includeCallInRecents??false
+      'appName': appName,
+      'handleType': _handleType(handleType),
+      'supportsVideo': supportsVideo ?? true,
+      'maximumCallGroups': maximumCallGroups ?? 1,
+      'maximumCallsPerCallGroup': maximumCallsPerCallGroup ?? 1,
+      'includeCallInRecents': includeCallInRecents ?? false
     };
-    if(imageName!=null) {
+    if (imageName != null) {
       json['imageName'] = imageName;
     }
 
-    if(ringtoneSound!=null) {
+    if (ringtoneSound != null) {
       json['ringtoneSound'] = ringtoneSound;
     }
     return json;
   }
-
 }
-class SetupOptions{
-  SetupOptions({this.android,this.iOS});
+
+class SetupOptions {
+  SetupOptions({this.android, this.iOS});
   final AndroidOptions android;
   final IOSOptions iOS;
-  
 }
+
 class FlutterCallkeep extends EventManager {
   factory FlutterCallkeep() {
     return _instance;
@@ -123,7 +137,6 @@ class FlutterCallkeep extends EventManager {
       await _openPhoneAccounts();
     }
   }
-  
 
   Future<void> displayIncomingCall(String uuid, String handle,
       {String localizedCallerName = '',
@@ -155,7 +168,8 @@ class FlutterCallkeep extends EventManager {
   }
 
   Future<void> startCall(String uuid, String handle, String callerName,
-      {HandleType handleType = HandleType.generic, bool hasVideo = false}) async {
+      {HandleType handleType = HandleType.generic,
+      bool hasVideo = false}) async {
     if (!isIOS) {
       await _channel.invokeMethod<void>('startCall', <String, dynamic>{
         'uuid': uuid,
@@ -189,9 +203,9 @@ class FlutterCallkeep extends EventManager {
     }
   }
 
-  Future<void> reportEndCallWithUUID(String uuid, int reason) async =>
+  Future<void> reportEndCallWithUUID(String uuid, CallEndReason reason) async =>
       await _channel.invokeMethod<void>('reportEndCallWithUUID',
-          <String, dynamic>{'uuid': uuid, 'reason': reason});
+          <String, dynamic>{'uuid': uuid, 'reason': _callEndReason(reason)});
 
   /*
    * Android explicitly states we reject a call
@@ -253,8 +267,8 @@ class FlutterCallkeep extends EventManager {
       return;
     }
     // Tell android that we are able to make outgoing calls
-    await _channel
-        .invokeMethod<void>('setAvailable', <String, dynamic>{'available': state});
+    await _channel.invokeMethod<void>(
+        'setAvailable', <String, dynamic>{'available': state});
   }
 
   Future<void> setCurrentCallActive(String callUUID) async {
@@ -313,9 +327,9 @@ class FlutterCallkeep extends EventManager {
     if (options.appName == null) {
       throw Exception('CallKeep.setup: option "appName" is required');
     }
-    
-    return await _channel
-        .invokeMethod<void>('setup', <String, dynamic>{'options': options._toJson()});
+
+    return await _channel.invokeMethod<void>(
+        'setup', <String, dynamic>{'options': options._toJson()});
   }
 
   Future<bool> _setupAndroid(AndroidOptions options) async {
@@ -353,12 +367,8 @@ class FlutterCallkeep extends EventManager {
     if (_context == null) {
       return false;
     }
-    return await _showAlertDialog(
-        _context,
-        options.alertTitle ,
-        options.alertDescription,
-        options.cancelButton,
-        options.okButton);
+    return await _showAlertDialog(_context, options.alertTitle,
+        options.alertDescription, options.cancelButton, options.okButton);
   }
 
   Future<bool> _showAlertDialog(BuildContext context, String alertTitle,
@@ -432,14 +442,37 @@ class FlutterCallkeep extends EventManager {
   }
 }
 
-enum HandleType{
-  generic,number,email
- 
-}
-String _handleType(HandleType type){
-    switch(type){
-      case HandleType.email: return 'email';
-      case HandleType.number: return 'number';
-      default : return 'generic';
-    }
+enum HandleType { generic, number, email }
+String _handleType(HandleType type) {
+  switch (type) {
+    case HandleType.email:
+      return 'email';
+    case HandleType.number:
+      return 'number';
+    default:
+      return 'generic';
   }
+}
+
+enum CallEndReason {
+  failed,
+  remoteEnded,
+  unanswered,
+  answeredElsewhere,
+  declinedElsewhere
+}
+int _callEndReason(CallEndReason reason) {
+  switch (reason) {
+    case CallEndReason.failed:
+      return 1;
+    case CallEndReason.remoteEnded:
+      return 2;
+    case CallEndReason.unanswered:
+      return 3;
+    case CallEndReason.answeredElsewhere:
+      return 4;
+    case CallEndReason.declinedElsewhere:
+      return 5;
+  }
+  return 6;
+}

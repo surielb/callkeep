@@ -1,10 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:callkeep/callkeep.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-
-import 'package:callkeep/callkeep.dart';
 import 'package:uuid/uuid.dart';
 
 /// For fcm background message handler.
@@ -34,18 +33,15 @@ Future<dynamic> myBackgroundMessageHandler(Map<String, dynamic> message) {
     print('backgroundMessage: CallKeepPerformEndCallAction ${event.callUUID}');
   });
   if (!_callKeepInited) {
-    _callKeep.setup(<String, dynamic>{
-      'ios': {
-        'appName': 'CallKeepDemo',
-      },
-      'android': {
-        'alertTitle': 'Permissions required',
-        'alertDescription':
-            'This application needs to access your phone accounts',
-        'cancelButton': 'Cancel',
-        'okButton': 'ok',
-      },
-    });
+    _callKeep.setup(SetupOptions(
+        iOS: IOSOptions(appName: 'CallKeepDemo'),
+        android: AndroidOptions(
+          alertTitle: 'Permissions required',
+          alertDescription:
+              'This application needs to access your phone accounts',
+          cancelButton: 'Cancel',
+          okButton: 'ok',
+        )));
     _callKeepInited = true;
   }
 
@@ -236,18 +232,20 @@ class _MyAppState extends State<HomePage> {
     print('Display incoming call now');
     final bool hasPhoneAccount = await _callKeep.hasPhoneAccount();
     if (!hasPhoneAccount) {
-      await _callKeep.hasDefaultPhoneAccount(context, <String, dynamic>{
-        'alertTitle': 'Permissions required',
-        'alertDescription':
-            'This application needs to access your phone accounts',
-        'cancelButton': 'Cancel',
-        'okButton': 'ok',
-      });
+      await _callKeep.hasDefaultPhoneAccount(
+          context,
+          AndroidOptions(
+            alertTitle: 'Permissions required',
+            alertDescription:
+                'This application needs to access your phone accounts',
+            cancelButton: 'Cancel',
+            okButton: 'ok',
+          ));
     }
 
     print('[displayIncomingCall] $callUUID number: $number');
     _callKeep.displayIncomingCall(callUUID, number,
-        handleType: 'number', hasVideo: false);
+        handleType: HandleType.number, hasVideo: false);
   }
 
   void didDisplayIncomingCall(CallKeepDidDisplayIncomingCall event) {
@@ -277,18 +275,15 @@ class _MyAppState extends State<HomePage> {
     _callKeep.on(CallKeepPerformEndCallAction(), endCall);
     _callKeep.on(CallKeepPushKitToken(), onPushKitToken);
 
-    _callKeep.setup(<String, dynamic>{
-      'ios': {
-        'appName': 'CallKeepDemo',
-      },
-      'android': {
-        'alertTitle': 'Permissions required',
-        'alertDescription':
-            'This application needs to access your phone accounts',
-        'cancelButton': 'Cancel',
-        'okButton': 'ok',
-      },
-    });
+    _callKeep.setup(SetupOptions(
+        iOS: IOSOptions(appName: 'CallKeepDemo'),
+        android: AndroidOptions(
+          alertTitle: 'Permissions required',
+          alertDescription:
+              'This application needs to access your phone accounts',
+          cancelButton: 'Cancel',
+          okButton: 'ok',
+        )));
 
     if (Platform.isAndroid) {
       //if (isIOS) iOS_Permission();

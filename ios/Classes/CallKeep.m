@@ -225,19 +225,23 @@ static CXProvider* sharedProvider;
     NSLog(@"didReceiveIncomingPushWithPayload payload = %@", payload.type);
     /* payload example.
      {
-         "callkeep": {
+         "voip": {
              "title": "Incoming Call",
-             "number": "+86186123456789"
+             "handle": "@nighthawk",
+             "name":"michael",
+             "channel": UUID
          }
      }
     */
-    NSDictionary *dic = payload.dictionaryPayload[@"callkeep"];
-    NSString *number = dic[@"number"];
-    [CallKeep reportNewIncomingCall:[self createUUID]
-                             handle:number
-                         handleType:@"number"
-                           hasVideo:NO
-                localizedCallerName:@"hello"
+    NSDictionary *dic = payload.dictionaryPayload[@"voip"];
+    NSString *handle = dic[@"handle"];
+    NSString *name = dic[@"name"];
+    NSString *channel = dic[@"channel"];
+    [CallKeep reportNewIncomingCall:channel
+                             handle:handle
+                         handleType:@"generic"
+                           hasVideo:YES
+                localizedCallerName:name
                         fromPushKit:YES
                             payload:payload.dictionaryPayload
               withCompletionHandler:^(){}];
