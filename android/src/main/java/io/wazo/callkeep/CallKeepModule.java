@@ -110,7 +110,9 @@ public class CallKeepModule {
             }
             break;
             case "displayIncomingCall": {
-                displayIncomingCall((String)call.argument("uuid"), (String)call.argument("handle"), (String)call.argument("localizedCallerName"));
+                displayIncomingCall((String)call.argument("uuid"),
+                        (String)call.argument("handle"), (String)call.argument("localizedCallerName"),
+                        (Map)call.argument("payload"));
                 result.success(null);
             }
             break;
@@ -245,7 +247,7 @@ public class CallKeepModule {
     }
 
     
-    public void displayIncomingCall(String uuid, String number, String callerName) {
+    public void displayIncomingCall(String uuid, String number, String callerName,Map payload) {
         if (!isConnectionServiceAvailable() || !hasPhoneAccount()) {
             return;
         }
@@ -258,6 +260,7 @@ public class CallKeepModule {
         extras.putParcelable(TelecomManager.EXTRA_INCOMING_CALL_ADDRESS, uri);
         extras.putString(EXTRA_CALLER_NAME, callerName);
         extras.putString(EXTRA_CALL_UUID, uuid);
+        //extras.putSerializable(EXTRA_PAYLOAD,new HashMap(payload));
 
         telecomManager.addNewIncomingCall(handle, extras);
     }
@@ -731,6 +734,7 @@ public class CallKeepModule {
                     args.putString("callUUID", attributeMap.get(EXTRA_CALL_UUID));
                     args.putString("handle", attributeMap.get(EXTRA_CALL_NUMBER));
                     args.putString("name", attributeMap.get(EXTRA_CALLER_NAME));
+                    //args.putMap("payload", (Map<String, Object>) intent.getSerializableExtra(EXTRA_PAYLOAD));
                     sendEventToFlutter("CallKeepDidReceiveStartCallAction", args);
                     break;
                 case ACTION_AUDIO_SESSION:

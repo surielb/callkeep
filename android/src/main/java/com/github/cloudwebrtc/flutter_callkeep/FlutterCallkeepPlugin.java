@@ -2,6 +2,8 @@ package com.github.cloudwebrtc.flutter_callkeep;
 
 import android.app.Activity;
 import android.content.Context;
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
@@ -23,6 +25,8 @@ public class FlutterCallkeepPlugin implements FlutterPlugin, MethodCallHandler, 
   /// when the Flutter Engine is detached from the Activity
   private MethodChannel channel;
   private CallKeepModule callKeep;
+  private static final String TAG = "FLT:CallKeepPlugin";
+
 
   /**
    * Plugin registration.
@@ -66,6 +70,7 @@ public class FlutterCallkeepPlugin implements FlutterPlugin, MethodCallHandler, 
 
   @Override
   public void onMethodCall(@NonNull MethodCall call, @NonNull Result result) {
+    Log.d(TAG,"Called onMethodCall with call: " + call.method);
     if (!callKeep.HandleMethodCall(call, result)) {
       result.notImplemented();
     }

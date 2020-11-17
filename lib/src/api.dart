@@ -141,12 +141,14 @@ class FlutterCallkeep extends EventManager {
   Future<void> displayIncomingCall(String uuid, String handle,
       {String localizedCallerName = '',
       HandleType handleType = HandleType.generic,
-      bool hasVideo = false}) async {
+      bool hasVideo = false,
+      Map payload}) async {
     if (!isIOS) {
-      await _channel.invokeMethod<void>(
-          'displayIncomingCall', <String, dynamic>{
+      await _channel
+          .invokeMethod<void>('displayIncomingCall', <String, dynamic>{
         'uuid': uuid,
         'handle': handle,
+        'payload': payload,
         'localizedCallerName': localizedCallerName
       });
       return;
@@ -156,6 +158,7 @@ class FlutterCallkeep extends EventManager {
       'handle': handle,
       'handleType': _handleType(handleType),
       'hasVideo': hasVideo,
+      'payload': payload,
       'localizedCallerName': localizedCallerName
     });
   }
@@ -313,6 +316,13 @@ class FlutterCallkeep extends EventManager {
           })
         : throw Exception(
             'CallKeep.reportUpdatedCall was called from unsupported OS');
+  }
+
+  Future<void> setActiveChannel(String channel) async {
+    if (isIOS) {
+      await _channel.invokeMethod<void>(
+          'setActiveChannel', <String, dynamic>{'channel': channel});
+    }
   }
 
   Future<void> backToForeground() async {

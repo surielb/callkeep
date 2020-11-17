@@ -28,6 +28,7 @@ static NSString *const CallKeepPushKitToken = @"CallKeepPushKitToken";
 @implementation CallKeep
 {
     NSOperatingSystemVersion _version;
+    NSString *_currentChannel;
     bool _hasListeners;
     NSMutableArray *_delayedEvents;
 }
@@ -83,8 +84,13 @@ static CXProvider* sharedProvider;
     if ([@"setup" isEqualToString:method]) {
         [self setup:argsMap[@"options"]];
         result(nil);
-    } else if ([@"displayIncomingCall" isEqualToString:method]) {
-        [self displayIncomingCall:argsMap[@"uuid"] handle:argsMap[@"handle"] handleType:argsMap[@"handleType"] hasVideo:[argsMap[@"hasVideo"] boolValue] localizedCallerName:argsMap[@"localizedCallerName"]];
+    }
+    else if([@"setActiveChannel" isEqualToString:method]){
+        [self setActiveChannel:argsMap[@"channel"]];
+        result(nil);
+    }
+    else if ([@"displayIncomingCall" isEqualToString:method]) {
+        [self displayIncomingCall:argsMap[@"uuid"] handle:argsMap[@"handle"] handleType:argsMap[@"handleType"] hasVideo:[argsMap[@"hasVideo"] boolValue] localizedCallerName:argsMap[@"localizedCallerName"] payload:argsMap[@"payload"]];
         result(nil);
     }
     else if ([@ "startCall" isEqualToString:method]) {
@@ -171,6 +177,10 @@ static CXProvider* sharedProvider;
         sharedProvider = [[CXProvider alloc] initWithConfiguration:[CallKeep getProviderConfiguration:settings]];
     }
 }
+-(void)setActiveChannel:(NSString*) channel
+{
+    _currentChannel = channel;
+}
 
 -(void)setup:(NSDictionary *)options
 {
@@ -234,16 +244,22 @@ static CXProvider* sharedProvider;
      }
     */
     NSDictionary *dic = payload.dictionaryPayload[@"voip"];
+    if(dic ==nil) return;
     NSString *handle = dic[@"handle"];
     NSString *name = dic[@"name"];
     NSString *channel = dic[@"channel"];
+    if([channel isEqualToString:_currentChannel]){
+        NSLog(@"got voip, but channel is active");
+        return;
+    }
+    if(channel == nil || handle == nil || name == nil ) return;
     [CallKeep reportNewIncomingCall:channel
                              handle:handle
                          handleType:@"generic"
                            hasVideo:YES
                 localizedCallerName:name
                         fromPushKit:YES
-                            payload:payload.dictionaryPayload
+                            payload:dic
               withCompletionHandler:^(){}];
 }
 
@@ -273,8 +289,9 @@ static CXProvider* sharedProvider;
                  handleType:(NSString *)handleType
                    hasVideo:(BOOL)hasVideo
         localizedCallerName:(NSString * _Nullable)localizedCallerName
+                    payload:(NSDictionary * _Nullable)payload
 {
-    [CallKeep reportNewIncomingCall: uuidString handle:handle handleType:handleType hasVideo:hasVideo localizedCallerName:localizedCallerName fromPushKit: NO payload:nil withCompletionHandler:nil];
+    [CallKeep reportNewIncomingCall: uuidString handle:handle handleType:handleType hasVideo:hasVideo localizedCallerName:localizedCallerName fromPushKit: NO payload:payload withCompletionHandler:nil];
 }
 
 -(void) startCall:(NSString *)uuidString
