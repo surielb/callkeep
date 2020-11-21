@@ -248,6 +248,15 @@ static CXProvider* sharedProvider;
     NSString *handle = dic[@"handle"];
     NSString *name = dic[@"name"];
     NSString *channel = dic[@"channel"];
+    NSString *epochTime =dic[@"sent_at"];
+    NSTimeInterval ms_seconds = [epochTime doubleValue];
+    
+    NSDate *epochNSDate = [[NSDate alloc] initWithTimeIntervalSince1970:ms_seconds/1000];
+    if(fabs([epochNSDate timeIntervalSinceNow])>120)
+    {
+        NSLog(@"push is too old, not calling");
+        return;
+    }
     if([channel isEqualToString:_currentChannel]){
         NSLog(@"got voip, but channel is active");
         return;
