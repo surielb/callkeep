@@ -230,7 +230,7 @@ static CXProvider* sharedProvider;
     return [uuidStr lowercaseString];
 }
 
-- (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(NSString *)type {
+- (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(NSString *)type withCompletionHandler:(nonnull void (^)(void))completion{
     // Process the received push
     NSLog(@"didReceiveIncomingPushWithPayload payload = %@", payload.type);
     /* payload example.
@@ -255,10 +255,18 @@ static CXProvider* sharedProvider;
     if(fabs([epochNSDate timeIntervalSinceNow])>120)
     {
         NSLog(@"push is too old, not calling");
+        [CallKeep initCallKitProvider];
+        NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:channel];
+        [sharedProvider reportCallWithUUID:uuid endedAtDate:epochNSDate reason:CXCallEndedReasonDeclinedElsewhere];
+        completion();
         return;
     }
     if([channel isEqualToString:_currentChannel]){
         NSLog(@"got voip, but channel is active");
+        [CallKeep initCallKitProvider];
+        NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:channel];
+        [sharedProvider reportCallWithUUID:uuid endedAtDate:epochNSDate reason:CXCallEndedReasonAnsweredElsewhere];
+        completion();
         return;
     }
     if(channel == nil || handle == nil || name == nil ) return;
@@ -269,7 +277,9 @@ static CXProvider* sharedProvider;
                 localizedCallerName:name
                         fromPushKit:YES
                             payload:dic
-              withCompletionHandler:^(){}];
+              withCompletionHandler:completion];
+    
+    
 }
 
 
